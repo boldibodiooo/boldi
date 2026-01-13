@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Mini Agar Snake</title>
+<style>
+    body {
+        background: radial-gradient(#222, #000);
+        color: white;
+        font-family: Arial, sans-serif;
+        text-align: center;
+    }
+
+    canvas {
+        background: #111;
+        display: block;
+        margin: 20px auto;
+        border-radius: 10px;
+        border: 2px solid #0f0;
+    }
+
+    #info {
+        font-size: 18px;
+    }
+</style>
+</head>
+<body>
+
+<h1>🟢 Mini Agar Snake</h1>
+<p id="info">Score : 0 | Vitesse : 1</p>
+<p>Flèches du clavier ⬅️ ⬆️ ➡️ ⬇️</p>
+
+<canvas id="game" width="500" height="500"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const size = 15;
+let score = 0;
+let speed = 1;
+
+let direction = "RIGHT";
+
+let snake = [
+    { x: 250, y: 250 }
+];
+
+// Nourritures multiples
+let foods = [];
+for (let i = 0; i < 5; i++) {
+    foods.push(createFood());
+}
+
+function createFood() {
+    return {
+        x: Math.random() * (canvas.width - size),
+        y: Math.random() * (canvas.height - size),
+        color: `hsl(${Math.random() * 360}, 100%, 50%)`
+    };
+}
+
+document.addEventListener("keydown", e => {
+    if (e.key === "ArrowLeft" && direction !== "RIGHT") direction = "LEFT";
+    if (e.key === "ArrowUp" && direction !== "DOWN") direction = "UP";
+    if (e.key === "ArrowRight" && direction !== "LEFT") direction = "RIGHT";
+    if (e.key === "ArrowDown" && direction !== "UP") direction = "DOWN";
+});
+
+function drawCircle(x, y, r, color) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+}
+
+function gameOver() {
+    alert("💀 Game Over ! Score : " + score);
+    location.reload();
+}
+
+function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    let head = { ...snake[0] };
+
+    if (direction === "LEFT") head.x -= size;
+    if (direction === "RIGHT") head.x += size;
+    if (direction === "UP") head.y -= size;
+    if (direction === "DOWN") head.y += size;
+
+    // Collision murs
+    if (
+        head.x < 0 || head.y < 0 ||
+        head.x > canvas.width || head.y > canvas.height
+    ) gameOver();
+
+    // Collision avec soi-même
+    for (let part of snake) {
+        if (Math.hypot(head.x - part.x, head.y - part.y) < size / 2) {
+            gameOver();
+        }
+    }
+
+    snake.unshift(head);
+
+    let eaten = false;
+
+    foods.forEach((food, index) => {
+        drawCircle(food.x, food.y, size / 2, food.color);
+
+        if (Math.hypot(head.x - food.x, head.y - food.y) < size) {
+            foods[index] = createFood();
+            score++;
+            eaten = true;
+
+            if (score % 5 === 0) speed++;
+            document.getElementById("info").textContent =
+                `Score : ${score} | Vitesse : ${speed}`;
+        }
+    });
+
+    if (!eaten) snake.pop();
+
+    // Dessin du snake
+    snake.forEach((part, i) => {
+        drawCircle(part.x, part.y, size / 2, i === 0 ? "#0f0" : "#0a0");
+    });
+}
+
+let game = setInterval(update, 120);
+
+function restart() {
+    clearInterval(game);
+    game = setInterval(update, 120 - speed * 5);
+}
+
+setInterval(restart, 1000);
+</script>
+
+</body>
+</html>
