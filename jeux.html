@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Mini Agar Snake</title>
+<title>Mini Agar Snake avec fond</title>
 <style>
     body {
         background: radial-gradient(#222, #000);
@@ -12,54 +12,74 @@
     }
 
     canvas {
-        background: #111;
         display: block;
         margin: 20px auto;
         border-radius: 10px;
         border: 2px solid #0f0;
+        background: url('https://i.imgur.com/J0oXb3I.png'); /* joli fond */
+        background-size: cover;
     }
 
     #info {
         font-size: 18px;
+    }
+
+    #restartBtn {
+        display: none;
+        padding: 10px 20px;
+        font-size: 18px;
+        background: #0f0;
+        color: #000;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+
+    #restartBtn:hover {
+        background: #0a0;
     }
 </style>
 </head>
 <body>
 
 <h1>🟢 Mini Agar Snake</h1>
-<p id="info">Score : 0 | Vitesse : 1</p>
+<p id="info">Score : 0 | Vitesse : 5</p>
 <p>Flèches du clavier ⬅️ ⬆️ ➡️ ⬇️</p>
-
 <canvas id="game" width="500" height="500"></canvas>
+<button id="restartBtn" onclick="init()">Rejouer</button>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-const size = 15;
-let score = 0;
-let speed = 1;
+const size = 20; // taille du serpent et des cubes
+let score, speed, direction, snake, foods, game;
 
-let direction = "RIGHT";
-
-let snake = [
-    { x: 250, y: 250 }
-];
-
-// Nourritures multiples
-let foods = [];
-for (let i = 0; i < 5; i++) {
-    foods.push(createFood());
-}
-
+// Création d'un cube nourriture aligné sur la grille
 function createFood() {
-    return {
-        x: Math.random() * (canvas.width - size),
-        y: Math.random() * (canvas.height - size),
-        color: `hsl(${Math.random() * 360}, 100%, 50%)`
-    };
+    const x = Math.floor(Math.random() * (canvas.width / size)) * size;
+    const y = Math.floor(Math.random() * (canvas.height / size)) * size;
+    const color = `hsl(${Math.random() * 360}, 100%, 50%)`;
+    return { x, y, color };
 }
 
+function init() {
+    score = 0;
+    speed = 5;
+    direction = "RIGHT";
+    snake = [{ x: 240, y: 240 }];
+    foods = [];
+    for (let i = 0; i < 5; i++) foods.push(createFood());
+
+    document.getElementById("info").textContent = `Score : ${score} | Vitesse : ${speed}`;
+    document.getElementById("restartBtn").style.display = "none";
+
+    if (game) clearInterval(game);
+    game = setInterval(update, 1000 / speed);
+}
+
+// Contrôles
 document.addEventListener("keydown", e => {
     if (e.key === "ArrowLeft" && direction !== "RIGHT") direction = "LEFT";
     if (e.key === "ArrowUp" && direction !== "DOWN") direction = "UP";
@@ -67,76 +87,84 @@ document.addEventListener("keydown", e => {
     if (e.key === "ArrowDown" && direction !== "UP") direction = "DOWN";
 });
 
-function drawCircle(x, y, r, color) {
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+// Dessiner un cube
+function drawRect(x, y, color) {
     ctx.fillStyle = color;
-    ctx.fill();
+    ctx.fillRect(x, y, size, size);
 }
 
+// Game over
 function gameOver() {
-    alert("💀 Game Over ! Score : " + score);
-    location.reload();
+    clearInterval(game);
+    document.getElementById("info").textContent = `💀 Game Over ! Score : ${score}`;
+    document.getElementById("restartBtn").style.display = "inline-block";
 }
 
+// Mise à jour du jeu
 function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Déplacement du serpent
     let head = { ...snake[0] };
-
     if (direction === "LEFT") head.x -= size;
     if (direction === "RIGHT") head.x += size;
     if (direction === "UP") head.y -= size;
     if (direction === "DOWN") head.y += size;
 
     // Collision murs
-    if (
-        head.x < 0 || head.y < 0 ||
-        head.x > canvas.width || head.y > canvas.height
-    ) gameOver();
+    if (head.x < 0 || head.y < 0 || head.x >= canvas.width || head.y >= canvas.height) {
+        gameOver();
+        return;
+    }
 
     // Collision avec soi-même
     for (let part of snake) {
-        if (Math.hypot(head.x - part.x, head.y - part.y) < size / 2) {
+        if (head.x === part.x && head.y === part.y) {
             gameOver();
+            return;
         }
     }
 
     snake.unshift(head);
 
+    // Vérifier si on mange de la nourriture
     let eaten = false;
+    foods.forEach((food, i) => {
+        drawRect(food.x, food.y, food.color);
 
-    foods.forEach((food, index) => {
-        drawCircle(food.x, food.y, size / 2, food.color);
-
-        if (Math.hypot(head.x - food.x, head.y - food.y) < size) {
-            foods[index] = createFood();
+        if (head.x === food.x && head.y === food.y) {
+            foods[i] = createFood();
             score++;
             eaten = true;
 
+            // augmenter la vitesse tous les 5 points
             if (score % 5 === 0) speed++;
-            document.getElementById("info").textContent =
-                `Score : ${score} | Vitesse : ${speed}`;
+            document.getElementById("info").textContent = `Score : ${score} | Vitesse : ${speed}`;
+
+            clearInterval(game);
+            game = setInterval(update, 1000 / speed);
         }
     });
 
     if (!eaten) snake.pop();
 
-    // Dessin du snake
+    // Dessin du serpent
     snake.forEach((part, i) => {
-        drawCircle(part.x, part.y, size / 2, i === 0 ? "#0f0" : "#0a0");
+        const color = i === 0 ? "#0f0" : "#0a0";
+        drawRect(part.x, part.y, color);
     });
 }
 
-let game = setInterval(update, 120);
-
-function restart() {
-    clearInterval(game);
-    game = setInterval(update, 120 - speed * 5);
-}
-
-setInterval(restart, 1000);
+// Démarrage
+init();
 </script>
 
 </body>
 </html>
+
+
+
+
+</body>
+</html>
+
